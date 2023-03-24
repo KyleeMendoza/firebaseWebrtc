@@ -13,6 +13,7 @@
     "expo": "~48.0.9",
     "expo-dev-client": "~2.1.6",
     "expo-status-bar": "~1.4.4",
+    "firebase": "^9.18.0",
     "react": "18.2.0",
     "react-native": "0.71.4",
     "react-native-webrtc": "^106.0.7"
