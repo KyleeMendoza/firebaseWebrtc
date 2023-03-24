@@ -10,7 +10,14 @@ import {
   MediaStream,
 } from "react-native-webrtc";
 import { db } from "./firebase";
-import { addDoc, collection, doc, setDoc, getDocs } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  setDoc,
+  getDocs,
+  updateDoc,
+} from "firebase/firestore";
 
 const configuration = {
   iceServers: [
@@ -91,11 +98,10 @@ export default function CallScreen({ setScreen, screens, roomId }) {
   };
 
   const startCall = async (id) => {
-    // const localPC = new RTCPeerConnection(configuration);
+    const localPC = new RTCPeerConnection(configuration);
     // localPC.addStream(localStream);
 
     // const colRef = collection(db, "Kyle");
-
     // getDocs(colRef).then((snapshot) => {
     //   let collection = [];
     //   snapshot.docs.forEach((doc) => {
@@ -104,35 +110,32 @@ export default function CallScreen({ setScreen, screens, roomId }) {
     //   console.log(collection);
     // });
 
-    const docRef = await addDoc(collection(db, "cities"), {
-      name: "Tokyo",
-      country: "Japan",
-    });
-    console.log("Document written with ID: ", docRef.id);
+    // const docRef = doc(db, "customers", id);
+    // const colRef = collection(docRef, "callerCandidates");
+    // addDoc(colRef, {
+    //   answer: "answer",
+    //   offer: "offer",
+    // });
 
-    // const roomRef = await db.collection("room").doc(id);
-    // const callerCandidatesCollection = roomRef.collection("callerCandidates");
+    const roomRef = doc(db, "room", id);
+    const callerCandidatesCollection = collection(roomRef, "callerCandidates");
+    // addDoc(callerCandidatesCollection, {}, { merge: true });
 
-    // localPC.onicecandidate = (e) => {
-    //   if (!e.candidate) {
-    //     console.log("Got final candidate!");
-    //     return;
-    //   }
-    //   callerCandidatesCollection.add(e.candidate.toJSON());
-    // };
+    localPC.onicecandidate = (e) => {
+      if (!e.candidate) {
+        console.log("Got final candidate!");
+        return;
+      }
+      // console.log("New ICE candidate:", e.candidate.toJSON());
+      addDoc(callerCandidatesCollection, e.candidate.toJSON());
+    };
 
-    // // localPC.onaddstream = (e) => {
-    // //   if (e.stream && remoteStream !== e.stream) {
-    // //     console.log("RemotePC received the stream call", e.stream);
-    // //     setRemoteStream(e.stream);
-    // //   }
-    // // };
+    const offer = await localPC.createOffer();
+    await localPC.setLocalDescription(offer);
 
-    // const offer = await localPC.createOffer();
-    // await localPC.setLocalDescription(offer);
-
-    // const roomWithOffer = { offer };
-    // await roomRef.set(roomWithOffer);
+    const roomWithOffer = { offer };
+    await setDoc(roomRef, roomWithOffer, { merge: true });
+    // await updateDoc(roomRef, roomWithOffer, { merge: true });
 
     // roomRef.onSnapshot(async (snapshot) => {
     //   const data = snapshot.data();
