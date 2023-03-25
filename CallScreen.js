@@ -39,7 +39,7 @@ export default function CallScreen({ setScreen, screens, roomId }) {
       cachedLocalPC.close();
     }
     setLocalStream();
-    setRemoteStream();
+    setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
     setCachedLocalPC();
     // cleanup
     setScreen(screens.ROOM);
@@ -47,6 +47,7 @@ export default function CallScreen({ setScreen, screens, roomId }) {
 
   const [localStream, setLocalStream] = useState();
   const [remoteStream, setRemoteStream] = useState();
+  // const [remoteStreamKey, setRemoteStreamKey] = useState();
   const [cachedLocalPC, setCachedLocalPC] = useState();
 
   const [isMuted, setIsMuted] = useState(false);
@@ -136,11 +137,19 @@ export default function CallScreen({ setScreen, screens, roomId }) {
       addDoc(callerCandidatesCollection, e.candidate.toJSON());
     });
 
+    // localPC.ontrack = (e) => {
+    //   if (e.stream && remoteStream !== e.stream) {
+    //     console.log("RemotePC received the stream call", e.stream);
+    //     setRemoteStream(e.stream);
+    //   }
+    // };
+
     localPC.ontrack = (e) => {
-      if (e.stream && remoteStream !== e.stream) {
-        console.log("RemotePC received the stream call", e.stream);
-        setRemoteStream(e.stream);
-      }
+      const newStream = new MediaStream();
+      e.streams[0].getTracks().forEach((track) => {
+        newStream.addTrack(track);
+      });
+      setRemoteStream(newStream);
     };
 
     const offer = await localPC.createOffer();
@@ -231,14 +240,14 @@ export default function CallScreen({ setScreen, screens, roomId }) {
             />
           )}
         </View>
-        <View style={styles.rtcview}>
-          {remoteStream && (
+        {remoteStream && (
+          <View style={styles.rtcview}>
             <RTCView
               style={styles.rtc}
               streamURL={remoteStream && remoteStream.toURL()}
             />
-          )}
-        </View>
+          </View>
+        )}
       </View>
     </>
   );

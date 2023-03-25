@@ -7,6 +7,7 @@ import {
   mediaDevices,
   RTCIceCandidate,
   RTCSessionDescription,
+  MediaStream,
 } from "react-native-webrtc";
 import { db } from "./firebase";
 import {
@@ -38,7 +39,7 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
       cachedLocalPC.close();
     }
     setLocalStream();
-    setRemoteStream();
+    setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
     setCachedLocalPC();
     // cleanup
     setScreen(screens.ROOM);
@@ -102,11 +103,19 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
       addDoc(calleeCandidatesCollection, e.candidate.toJSON());
     });
 
+    // localPC.ontrack = (e) => {
+    //   if (e.stream && remoteStream !== e.stream) {
+    //     console.log("RemotePC received the stream call", e.stream);
+    //     setRemoteStream(e.stream);
+    //   }
+    // };
+
     localPC.ontrack = (e) => {
-      if (e.stream && remoteStream !== e.stream) {
-        console.log("RemotePC received the stream call", e.stream);
-        setRemoteStream(e.stream);
-      }
+      const newStream = new MediaStream();
+      e.streams[0].getTracks().forEach((track) => {
+        newStream.addTrack(track);
+      });
+      setRemoteStream(newStream);
     };
 
     const offer = roomSnapshot.data().offer;
@@ -189,14 +198,14 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
             />
           )}
         </View>
-        <View style={styles.rtcview}>
-          {remoteStream && (
+        {remoteStream && (
+          <View style={styles.rtcview}>
             <RTCView
               style={styles.rtc}
               streamURL={remoteStream && remoteStream.toURL()}
             />
-          )}
-        </View>
+          </View>
+        )}
       </View>
     </>
   );
