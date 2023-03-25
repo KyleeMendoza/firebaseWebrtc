@@ -9,6 +9,15 @@ import {
   RTCSessionDescription,
 } from "react-native-webrtc";
 import { db } from "./firebase";
+import {
+  addDoc,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  onSnapshot,
+} from "firebase/firestore";
 
 const configuration = {
   iceServers: [
@@ -22,7 +31,10 @@ const configuration = {
 export default function JoinScreen({ setScreen, screens, roomId }) {
   function onBackPress() {
     if (cachedLocalPC) {
-      cachedLocalPC.removeStream(localStream);
+      const senders = cachedLocalPC.getSenders();
+      senders.forEach((sender) => {
+        cachedLocalPC.removeTrack(sender);
+      });
       cachedLocalPC.close();
     }
     setLocalStream();
@@ -69,25 +81,30 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
   };
 
   const joinCall = async (id) => {
-    const roomRef = await db.collection("room").doc(id);
-    const roomSnapshot = await roomRef.get();
+    const roomRef = doc(db, "room", id);
+    const roomSnapshot = await getDoc(roomRef);
 
     if (!roomSnapshot.exists) return;
     const localPC = new RTCPeerConnection(configuration);
-    localPC.addStream(localStream);
+    localStream.getTracks().forEach((track) => {
+      localPC.addTrack(track, localStream);
+    });
 
-    const calleeCandidatesCollection = roomRef.collection("calleeCandidates");
-    localPC.onicecandidate = (e) => {
+    const callerCandidatesCollection = collection(roomRef, "callerCandidates");
+    const calleeCandidatesCollection = collection(roomRef, "calleeCandidates");
+
+    localPC.addEventListener("icecandidate", (e) => {
       if (!e.candidate) {
         console.log("Got final candidate!");
         return;
       }
-      calleeCandidatesCollection.add(e.candidate.toJSON());
-    };
+      // console.log("New ICE candidate:", e.candidate.toJSON());
+      addDoc(calleeCandidatesCollection, e.candidate.toJSON());
+    });
 
-    localPC.onaddstream = (e) => {
+    localPC.ontrack = (e) => {
       if (e.stream && remoteStream !== e.stream) {
-        console.log("RemotePC received the stream join", e.stream);
+        console.log("RemotePC received the stream call", e.stream);
         setRemoteStream(e.stream);
       }
     };
@@ -99,13 +116,13 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
     await localPC.setLocalDescription(answer);
 
     const roomWithAnswer = { answer };
-    await roomRef.update(roomWithAnswer);
+    await updateDoc(roomRef, roomWithAnswer, { merge: true });
 
-    roomRef.collection("callerCandidates").onSnapshot((snapshot) => {
-      snapshot.docChanges().forEach(async (change) => {
+    onSnapshot(callerCandidatesCollection, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
         if (change.type === "added") {
           let data = change.doc.data();
-          await localPC.addIceCandidate(new RTCIceCandidate(data));
+          localPC.addIceCandidate(new RTCIceCandidate(data));
         }
       });
     });

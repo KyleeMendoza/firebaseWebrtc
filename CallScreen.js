@@ -15,8 +15,9 @@ import {
   collection,
   doc,
   setDoc,
-  getDocs,
+  getDoc,
   updateDoc,
+  onSnapshot,
 } from "firebase/firestore";
 
 const configuration = {
@@ -31,7 +32,10 @@ const configuration = {
 export default function CallScreen({ setScreen, screens, roomId }) {
   function onBackPress() {
     if (cachedLocalPC) {
-      cachedLocalPC.removeStream(localStream);
+      const senders = cachedLocalPC.getSenders();
+      senders.forEach((sender) => {
+        cachedLocalPC.removeTrack(sender);
+      });
       cachedLocalPC.close();
     }
     setLocalStream();
@@ -79,27 +83,29 @@ export default function CallScreen({ setScreen, screens, roomId }) {
     // const remote = new MediaStream();
 
     //addTrack / addStream
-    const localPC = new RTCPeerConnection(configuration);
-    newStream.getTracks().forEach((track) => {
-      localPC.addTrack(track, newStream);
-    });
+    // const localPC = new RTCPeerConnection(configuration);
+    // newStream.getTracks().forEach((track) => {
+    //   localPC.addTrack(track, newStream);
+    // });
 
-    localPC.ontrack = (e) => {
-      //   e.streams[0].getTracks().forEach((track) => {
-      //     remote.addTrack(track);
-      //   });
-      if (e.stream && remoteStream !== e.stream) {
-        console.log("RemotePC received the stream call", e.stream);
-        setRemoteStream(e.stream);
-      }
-    };
+    // localPC.ontrack = (e) => {
+    //   //   e.streams[0].getTracks().forEach((track) => {
+    //   //     remote.addTrack(track);
+    //   //   });
+    //   if (e.stream && remoteStream !== e.stream) {
+    //     console.log("RemotePC received the stream call", e.stream);
+    //     setRemoteStream(e.stream);
+    //   }
+    // };
     // setRemoteStream(remote);
     // ----------------------------------------------------------------
   };
 
   const startCall = async (id) => {
     const localPC = new RTCPeerConnection(configuration);
-    // localPC.addStream(localStream);
+    localStream.getTracks().forEach((track) => {
+      localPC.addTrack(track, localStream);
+    });
 
     // const colRef = collection(db, "Kyle");
     // getDocs(colRef).then((snapshot) => {
@@ -119,15 +125,22 @@ export default function CallScreen({ setScreen, screens, roomId }) {
 
     const roomRef = doc(db, "room", id);
     const callerCandidatesCollection = collection(roomRef, "callerCandidates");
-    // addDoc(callerCandidatesCollection, {}, { merge: true });
+    const calleeCandidatesCollection = collection(roomRef, "calleeCandidates");
 
-    localPC.onicecandidate = (e) => {
+    localPC.addEventListener("icecandidate", (e) => {
       if (!e.candidate) {
         console.log("Got final candidate!");
         return;
       }
       // console.log("New ICE candidate:", e.candidate.toJSON());
       addDoc(callerCandidatesCollection, e.candidate.toJSON());
+    });
+
+    localPC.ontrack = (e) => {
+      if (e.stream && remoteStream !== e.stream) {
+        console.log("RemotePC received the stream call", e.stream);
+        setRemoteStream(e.stream);
+      }
     };
 
     const offer = await localPC.createOffer();
@@ -137,24 +150,26 @@ export default function CallScreen({ setScreen, screens, roomId }) {
     await setDoc(roomRef, roomWithOffer, { merge: true });
     // await updateDoc(roomRef, roomWithOffer, { merge: true });
 
-    // roomRef.onSnapshot(async (snapshot) => {
-    //   const data = snapshot.data();
-    //   if (!localPC.currentRemoteDescription && data.answer) {
-    //     const rtcSessionDescription = new RTCSessionDescription(data.answer);
-    //     await localPC.setRemoteDescription(rtcSessionDescription);
-    //   }
-    // });
+    // Listen for remote answer
+    onSnapshot(roomRef, (doc) => {
+      const data = doc.data();
+      if (!localPC.currentRemoteDescription && data.answer) {
+        const rtcSessionDescription = new RTCSessionDescription(data.answer);
+        localPC.setRemoteDescription(rtcSessionDescription);
+      }
+    });
 
-    // roomRef.collection("calleeCandidates").onSnapshot((snapshot) => {
-    //   snapshot.docChanges().forEach(async (change) => {
-    //     if (change.type === "added") {
-    //       let data = change.doc.data();
-    //       await localPC.addIceCandidate(new RTCIceCandidate(data));
-    //     }
-    //   });
-    // });
+    // when answered, add candidate to peer connection
+    onSnapshot(calleeCandidatesCollection, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          let data = change.doc.data();
+          localPC.addIceCandidate(new RTCIceCandidate(data));
+        }
+      });
+    });
 
-    // setCachedLocalPC(localPC);
+    setCachedLocalPC(localPC);
   };
 
   const switchCamera = () => {
