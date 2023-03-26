@@ -18,6 +18,7 @@ import {
   getDoc,
   updateDoc,
   onSnapshot,
+  deleteField,
 } from "firebase/firestore";
 
 const configuration = {
@@ -30,7 +31,7 @@ const configuration = {
 };
 
 export default function JoinScreen({ setScreen, screens, roomId }) {
-  function onBackPress() {
+  async function onBackPress() {
     if (cachedLocalPC) {
       const senders = cachedLocalPC.getSenders();
       senders.forEach((sender) => {
@@ -38,6 +39,10 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
       });
       cachedLocalPC.close();
     }
+
+    const roomRef = doc(db, "room", roomId);
+    await updateDoc(roomRef, { answer: deleteField(), connected: false });
+
     setLocalStream();
     setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
     setCachedLocalPC();
@@ -103,13 +108,6 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
       addDoc(calleeCandidatesCollection, e.candidate.toJSON());
     });
 
-    // localPC.ontrack = (e) => {
-    //   if (e.stream && remoteStream !== e.stream) {
-    //     console.log("RemotePC received the stream call", e.stream);
-    //     setRemoteStream(e.stream);
-    //   }
-    // };
-
     localPC.ontrack = (e) => {
       const newStream = new MediaStream();
       e.streams[0].getTracks().forEach((track) => {
@@ -124,8 +122,9 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
     const answer = await localPC.createAnswer();
     await localPC.setLocalDescription(answer);
 
-    const roomWithAnswer = { answer };
-    await updateDoc(roomRef, roomWithAnswer, { merge: true });
+    // const roomWithAnswer = { answer };
+    // await updateDoc(roomRef, roomWithAnswer, { merge: true });
+    await updateDoc(roomRef, { answer, connected: true }, { merge: true });
 
     onSnapshot(callerCandidatesCollection, (snapshot) => {
       snapshot.docChanges().forEach((change) => {

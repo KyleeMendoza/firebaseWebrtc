@@ -80,26 +80,6 @@ export default function CallScreen({ setScreen, screens, roomId }) {
     };
     const newStream = await mediaDevices.getUserMedia(constraints);
     setLocalStream(newStream);
-    // ----------------------------------------------------------------
-    // const remote = new MediaStream();
-
-    //addTrack / addStream
-    // const localPC = new RTCPeerConnection(configuration);
-    // newStream.getTracks().forEach((track) => {
-    //   localPC.addTrack(track, newStream);
-    // });
-
-    // localPC.ontrack = (e) => {
-    //   //   e.streams[0].getTracks().forEach((track) => {
-    //   //     remote.addTrack(track);
-    //   //   });
-    //   if (e.stream && remoteStream !== e.stream) {
-    //     console.log("RemotePC received the stream call", e.stream);
-    //     setRemoteStream(e.stream);
-    //   }
-    // };
-    // setRemoteStream(remote);
-    // ----------------------------------------------------------------
   };
 
   const startCall = async (id) => {
@@ -137,13 +117,6 @@ export default function CallScreen({ setScreen, screens, roomId }) {
       addDoc(callerCandidatesCollection, e.candidate.toJSON());
     });
 
-    // localPC.ontrack = (e) => {
-    //   if (e.stream && remoteStream !== e.stream) {
-    //     console.log("RemotePC received the stream call", e.stream);
-    //     setRemoteStream(e.stream);
-    //   }
-    // };
-
     localPC.ontrack = (e) => {
       const newStream = new MediaStream();
       e.streams[0].getTracks().forEach((track) => {
@@ -155,9 +128,9 @@ export default function CallScreen({ setScreen, screens, roomId }) {
     const offer = await localPC.createOffer();
     await localPC.setLocalDescription(offer);
 
-    const roomWithOffer = { offer };
-    await setDoc(roomRef, roomWithOffer, { merge: true });
-    // await updateDoc(roomRef, roomWithOffer, { merge: true });
+    // const roomWithOffer = { offer };
+    // await setDoc(roomRef, roomWithOffer, { merge: true });
+    await setDoc(roomRef, { offer, connected: false }, { merge: true });
 
     // Listen for remote answer
     onSnapshot(roomRef, (doc) => {
@@ -165,6 +138,8 @@ export default function CallScreen({ setScreen, screens, roomId }) {
       if (!localPC.currentRemoteDescription && data.answer) {
         const rtcSessionDescription = new RTCSessionDescription(data.answer);
         localPC.setRemoteDescription(rtcSessionDescription);
+      } else {
+        setRemoteStream();
       }
     });
 
