@@ -18,6 +18,7 @@ import {
   getDoc,
   updateDoc,
   onSnapshot,
+  deleteField,
 } from "firebase/firestore";
 
 const configuration = {
@@ -30,7 +31,7 @@ const configuration = {
 };
 
 export default function CallScreen({ setScreen, screens, roomId }) {
-  function onBackPress() {
+  async function onBackPress() {
     if (cachedLocalPC) {
       const senders = cachedLocalPC.getSenders();
       senders.forEach((sender) => {
@@ -38,6 +39,10 @@ export default function CallScreen({ setScreen, screens, roomId }) {
       });
       cachedLocalPC.close();
     }
+
+    const roomRef = doc(db, "room", roomId);
+    await updateDoc(roomRef, { answer: deleteField() });
+
     setLocalStream();
     setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
     setCachedLocalPC();

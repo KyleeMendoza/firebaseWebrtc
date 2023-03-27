@@ -135,6 +135,13 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
       });
     });
 
+    onSnapshot(roomRef, (doc) => {
+      const data = doc.data();
+      if (!data.answer) {
+        setScreen(screens.ROOM);
+      }
+    });
+
     setCachedLocalPC(localPC);
   };
 
