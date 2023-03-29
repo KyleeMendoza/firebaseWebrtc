@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Text, StyleSheet, Button, View, TextInput } from "react-native";
 
 export default function RoomScreen({ setScreen, screens, setRoomId, roomId }) {
@@ -7,6 +7,19 @@ export default function RoomScreen({ setScreen, screens, setRoomId, roomId }) {
       setScreen(screen);
     }
   };
+
+  useEffect(() => {
+    const generateRandomId = () => {
+      const characters = "abcdefghijklmnopqrstuvwxyz";
+      let result = "";
+      for (let i = 0; i < 7; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        result += characters.charAt(randomIndex);
+      }
+      return setRoomId(result);
+    };
+    generateRandomId();
+  }, []);
 
   return (
     <>
