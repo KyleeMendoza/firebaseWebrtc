@@ -1,13 +1,8 @@
 import React, { useState } from "react";
-import {
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  RecyclerViewBackedScrollView,
-} from "react-native";
-import RoomScreen from "./RoomScreen";
-import CallScreen from "./CallScreen";
-import JoinScreen from "./JoinScreen";
+import { Text, StyleSheet, SafeAreaView } from "react-native";
+import RoomScreen from "./screens/RoomScreen";
+import CallScreen from "./screens/CallScreen";
+import JoinScreen from "./screens/JoinScreen";
 
 // Just to handle navigation
 export default function App() {
@@ -50,12 +45,9 @@ export default function App() {
       content = <Text>Wrong Screen</Text>;
   }
 
-  return <SafeAreaView style={styles.container}>{content}</SafeAreaView>;
+  return (
+    <SafeAreaView className="flex-1 p-5 justify-center border-2 border-red-300">
+      {content}
+    </SafeAreaView>
+  );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 10,
-  },
-});

@@ -9,7 +9,7 @@ import {
   RTCSessionDescription,
   MediaStream,
 } from "react-native-webrtc";
-import { db } from "./firebase";
+import { db } from "../firebase";
 import {
   addDoc,
   collection,
@@ -30,7 +30,7 @@ const configuration = {
   iceCandidatePoolSize: 10,
 };
 
-export default function CallScreen({ setScreen, screens, roomId }) {
+export default function JoinScreen({ roomId, screens, setScreen }) {
   async function onBackPress() {
     if (cachedLocalPC) {
       const senders = cachedLocalPC.getSenders();
@@ -41,7 +41,7 @@ export default function CallScreen({ setScreen, screens, roomId }) {
     }
 
     const roomRef = doc(db, "room", roomId);
-    await updateDoc(roomRef, { answer: deleteField() });
+    await updateDoc(roomRef, { answer: deleteField(), connected: false });
 
     setLocalStream();
     setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
@@ -52,14 +52,9 @@ export default function CallScreen({ setScreen, screens, roomId }) {
 
   const [localStream, setLocalStream] = useState();
   const [remoteStream, setRemoteStream] = useState();
-  // const [remoteStreamKey, setRemoteStreamKey] = useState();
   const [cachedLocalPC, setCachedLocalPC] = useState();
 
   const [isMuted, setIsMuted] = useState(false);
-
-  useEffect(() => {
-    // startLocalStream();
-  }, []);
 
   const startLocalStream = async () => {
     // isFront will determine if the initial camera should face user or environment
@@ -87,29 +82,16 @@ export default function CallScreen({ setScreen, screens, roomId }) {
     setLocalStream(newStream);
   };
 
-  const startCall = async (id) => {
+  const joinCall = async (id) => {
+    const roomRef = doc(db, "room", id);
+    const roomSnapshot = await getDoc(roomRef);
+
+    if (!roomSnapshot.exists) return;
     const localPC = new RTCPeerConnection(configuration);
     localStream.getTracks().forEach((track) => {
       localPC.addTrack(track, localStream);
     });
 
-    // const colRef = collection(db, "Kyle");
-    // getDocs(colRef).then((snapshot) => {
-    //   let collection = [];
-    //   snapshot.docs.forEach((doc) => {
-    //     collection.push({ ...doc.data(), id: doc.id });
-    //   });
-    //   console.log(collection);
-    // });
-
-    // const docRef = doc(db, "customers", id);
-    // const colRef = collection(docRef, "callerCandidates");
-    // addDoc(colRef, {
-    //   answer: "answer",
-    //   offer: "offer",
-    // });
-
-    const roomRef = doc(db, "room", id);
     const callerCandidatesCollection = collection(roomRef, "callerCandidates");
     const calleeCandidatesCollection = collection(roomRef, "calleeCandidates");
 
@@ -118,8 +100,7 @@ export default function CallScreen({ setScreen, screens, roomId }) {
         console.log("Got final candidate!");
         return;
       }
-      // console.log("New ICE candidate:", e.candidate.toJSON());
-      addDoc(callerCandidatesCollection, e.candidate.toJSON());
+      addDoc(calleeCandidatesCollection, e.candidate.toJSON());
     });
 
     localPC.ontrack = (e) => {
@@ -130,32 +111,28 @@ export default function CallScreen({ setScreen, screens, roomId }) {
       setRemoteStream(newStream);
     };
 
-    const offer = await localPC.createOffer();
-    await localPC.setLocalDescription(offer);
+    const offer = roomSnapshot.data().offer;
+    await localPC.setRemoteDescription(new RTCSessionDescription(offer));
 
-    // const roomWithOffer = { offer };
-    // await setDoc(roomRef, roomWithOffer, { merge: true });
-    await setDoc(roomRef, { offer, connected: false }, { merge: true });
+    const answer = await localPC.createAnswer();
+    await localPC.setLocalDescription(answer);
 
-    // Listen for remote answer
-    onSnapshot(roomRef, (doc) => {
-      const data = doc.data();
-      if (!localPC.currentRemoteDescription && data.answer) {
-        const rtcSessionDescription = new RTCSessionDescription(data.answer);
-        localPC.setRemoteDescription(rtcSessionDescription);
-      } else {
-        setRemoteStream();
-      }
-    });
+    await updateDoc(roomRef, { answer, connected: true }, { merge: true });
 
-    // when answered, add candidate to peer connection
-    onSnapshot(calleeCandidatesCollection, (snapshot) => {
+    onSnapshot(callerCandidatesCollection, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === "added") {
           let data = change.doc.data();
           localPC.addIceCandidate(new RTCIceCandidate(data));
         }
       });
+    });
+
+    onSnapshot(roomRef, (doc) => {
+      const data = doc.data();
+      if (!data.answer) {
+        setScreen(screens.ROOM);
+      }
     });
 
     setCachedLocalPC(localPC);
@@ -171,7 +148,6 @@ export default function CallScreen({ setScreen, screens, roomId }) {
       return;
     }
     localStream.getAudioTracks().forEach((track) => {
-      // console.log(track.enabled ? 'muting' : 'unmuting', ' local track', track);
       track.enabled = !track.enabled;
       setIsMuted(!track.enabled);
     });
@@ -179,7 +155,7 @@ export default function CallScreen({ setScreen, screens, roomId }) {
 
   return (
     <>
-      <Text style={styles.heading}>Call Screen</Text>
+      <Text style={styles.heading}>Join Screen</Text>
       <Text style={styles.heading}>Room : {roomId}</Text>
 
       <View style={styles.callButtons}>
@@ -192,8 +168,8 @@ export default function CallScreen({ setScreen, screens, roomId }) {
           )}
           {localStream && (
             <Button
-              title="Click to start call"
-              onPress={() => startCall(roomId)}
+              title="Click to join call"
+              onPress={() => joinCall(roomId)}
               disabled={!!remoteStream}
             />
           )}

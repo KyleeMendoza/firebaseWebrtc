@@ -9,7 +9,7 @@ import {
   RTCSessionDescription,
   MediaStream,
 } from "react-native-webrtc";
-import { db } from "./firebase";
+import { db } from "../firebase";
 import {
   addDoc,
   collection,
@@ -21,6 +21,8 @@ import {
   deleteField,
 } from "firebase/firestore";
 
+import CallActionBox from "../components/CallActionBpx";
+
 const configuration = {
   iceServers: [
     {
@@ -30,8 +32,45 @@ const configuration = {
   iceCandidatePoolSize: 10,
 };
 
-export default function JoinScreen({ setScreen, screens, roomId }) {
-  async function onBackPress() {
+export default function CallScreen({ roomId, screens, setScreen }) {
+  // async function onBackPress() {
+  //   if (cachedLocalPC) {
+  //     const senders = cachedLocalPC.getSenders();
+  //     senders.forEach((sender) => {
+  //       cachedLocalPC.removeTrack(sender);
+  //     });
+  //     cachedLocalPC.close();
+  //   }
+
+  //   const roomRef = doc(db, "room", roomId);
+  //   await updateDoc(roomRef, { answer: deleteField() });
+
+  //   setLocalStream();
+  //   setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
+  //   setCachedLocalPC();
+  //   // cleanup
+  //   setScreen(screens.ROOM);
+  // }
+
+  const [localStream, setLocalStream] = useState();
+  const [remoteStream, setRemoteStream] = useState();
+  // const [remoteStreamKey, setRemoteStreamKey] = useState();
+  const [cachedLocalPC, setCachedLocalPC] = useState();
+
+  const [isMuted, setIsMuted] = useState(false);
+
+  useEffect(() => {
+    // generateRandomId();
+    startLocalStream();
+  }, []);
+  useEffect(() => {
+    if (localStream && roomId) {
+      startCall(roomId);
+    }
+  }, [localStream, roomId]);
+
+  //End call button
+  async function endCall() {
     if (cachedLocalPC) {
       const senders = cachedLocalPC.getSenders();
       senders.forEach((sender) => {
@@ -40,25 +79,15 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
       cachedLocalPC.close();
     }
 
-    const roomRef = doc(db, "room", roomId);
-    await updateDoc(roomRef, { answer: deleteField(), connected: false });
+    const roomRef = doc(firestoreDb, "room", roomId);
+    await updateDoc(roomRef, { answer: deleteField() });
 
     setLocalStream();
     setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
     setCachedLocalPC();
     // cleanup
-    setScreen(screens.ROOM);
+    navigation.navigate("Bookings");
   }
-
-  const [localStream, setLocalStream] = useState();
-  const [remoteStream, setRemoteStream] = useState();
-  const [cachedLocalPC, setCachedLocalPC] = useState();
-
-  const [isMuted, setIsMuted] = useState(false);
-
-  useEffect(() => {
-    // startLocalStream();
-  }, []);
 
   const startLocalStream = async () => {
     // isFront will determine if the initial camera should face user or environment
@@ -86,16 +115,13 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
     setLocalStream(newStream);
   };
 
-  const joinCall = async (id) => {
-    const roomRef = doc(db, "room", id);
-    const roomSnapshot = await getDoc(roomRef);
-
-    if (!roomSnapshot.exists) return;
+  const startCall = async (id) => {
     const localPC = new RTCPeerConnection(configuration);
     localStream.getTracks().forEach((track) => {
       localPC.addTrack(track, localStream);
     });
 
+    const roomRef = doc(db, "room", id);
     const callerCandidatesCollection = collection(roomRef, "callerCandidates");
     const calleeCandidatesCollection = collection(roomRef, "calleeCandidates");
 
@@ -104,8 +130,7 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
         console.log("Got final candidate!");
         return;
       }
-      // console.log("New ICE candidate:", e.candidate.toJSON());
-      addDoc(calleeCandidatesCollection, e.candidate.toJSON());
+      addDoc(callerCandidatesCollection, e.candidate.toJSON());
     });
 
     localPC.ontrack = (e) => {
@@ -116,30 +141,30 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
       setRemoteStream(newStream);
     };
 
-    const offer = roomSnapshot.data().offer;
-    await localPC.setRemoteDescription(new RTCSessionDescription(offer));
+    const offer = await localPC.createOffer();
+    await localPC.setLocalDescription(offer);
 
-    const answer = await localPC.createAnswer();
-    await localPC.setLocalDescription(answer);
+    await setDoc(roomRef, { offer, connected: false }, { merge: true });
 
-    // const roomWithAnswer = { answer };
-    // await updateDoc(roomRef, roomWithAnswer, { merge: true });
-    await updateDoc(roomRef, { answer, connected: true }, { merge: true });
+    // Listen for remote answer
+    onSnapshot(roomRef, (doc) => {
+      const data = doc.data();
+      if (!localPC.currentRemoteDescription && data.answer) {
+        const rtcSessionDescription = new RTCSessionDescription(data.answer);
+        localPC.setRemoteDescription(rtcSessionDescription);
+      } else {
+        setRemoteStream();
+      }
+    });
 
-    onSnapshot(callerCandidatesCollection, (snapshot) => {
+    // when answered, add candidate to peer connection
+    onSnapshot(calleeCandidatesCollection, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === "added") {
           let data = change.doc.data();
           localPC.addIceCandidate(new RTCIceCandidate(data));
         }
       });
-    });
-
-    onSnapshot(roomRef, (doc) => {
-      const data = doc.data();
-      if (!data.answer) {
-        setScreen(screens.ROOM);
-      }
     });
 
     setCachedLocalPC(localPC);
@@ -155,65 +180,52 @@ export default function JoinScreen({ setScreen, screens, roomId }) {
       return;
     }
     localStream.getAudioTracks().forEach((track) => {
-      // console.log(track.enabled ? 'muting' : 'unmuting', ' local track', track);
       track.enabled = !track.enabled;
       setIsMuted(!track.enabled);
     });
   };
 
+  const toggleCamera = () => {
+    localStream.getVideoTracks().forEach((track) => {
+      track.enabled = !track.enabled;
+      setIsOffCam(!isOffCam);
+    });
+  };
+
   return (
-    <>
-      <Text style={styles.heading}>Join Screen</Text>
-      <Text style={styles.heading}>Room : {roomId}</Text>
-
-      <View style={styles.callButtons}>
-        <View styles={styles.buttonContainer}>
-          <Button title="Click to stop call" onPress={onBackPress} />
-        </View>
-        <View styles={styles.buttonContainer}>
-          {!localStream && (
-            <Button title="Click to start stream" onPress={startLocalStream} />
-          )}
-          {localStream && (
-            <Button
-              title="Click to join call"
-              onPress={() => joinCall(roomId)}
-              disabled={!!remoteStream}
-            />
-          )}
-        </View>
-      </View>
-
-      {localStream && (
-        <View style={styles.toggleButtons}>
-          <Button title="Switch camera" onPress={switchCamera} />
-          <Button
-            title={`${isMuted ? "Unmute" : "Mute"} stream`}
-            onPress={toggleMute}
-            disabled={!remoteStream}
-          />
-        </View>
+    <View className="flex-1 bg-red-600">
+      {!remoteStream && (
+        <RTCView
+          className="flex-1"
+          streamURL={localStream && localStream.toURL()}
+          objectFit={"cover"}
+        />
       )}
 
-      <View style={{ display: "flex", flex: 1, padding: 10 }}>
-        <View style={styles.rtcview}>
-          {localStream && (
+      {remoteStream && (
+        <>
+          <RTCView
+            className="flex-1"
+            streamURL={remoteStream && remoteStream.toURL()}
+            objectFit={"cover"}
+          />
+          {!isOffCam && (
             <RTCView
-              style={styles.rtc}
+              className="w-32 h-48 absolute right-6 top-8"
               streamURL={localStream && localStream.toURL()}
             />
           )}
-        </View>
-        {remoteStream && (
-          <View style={styles.rtcview}>
-            <RTCView
-              style={styles.rtc}
-              streamURL={remoteStream && remoteStream.toURL()}
-            />
-          </View>
-        )}
+        </>
+      )}
+      <View className="absolute bottom-0 w-full">
+        <CallActionBox
+          switchCamera={switchCamera}
+          toggleMute={toggleMute}
+          toggleCamera={toggleCamera}
+          endCall={endCall}
+        />
       </View>
-    </>
+    </View>
   );
 }
 
