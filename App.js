@@ -46,8 +46,6 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView className="flex-1 p-5 justify-center border-2 border-red-300">
-      {content}
-    </SafeAreaView>
+    <SafeAreaView className="flex-1 justify-center ">{content}</SafeAreaView>
   );
 }

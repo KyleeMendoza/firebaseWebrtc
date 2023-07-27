@@ -17,7 +17,7 @@ const CallActionBox = ({ switchCamera, toggleMute, toggleCamera, endCall }) => {
   };
 
   return (
-    <View className="bg-gray-800 rounded-t-3xl p-5 pb-10 w-full flex-row justify-between">
+    <View className="border-2 border-gray-800 bg-gray-800 rounded-t-3xl p-5 pb-10 w-full flex-row justify-between">
       <Pressable
         onPress={switchCamera}
         className="bg-gray-600 p-3 rounded-full"

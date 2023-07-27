@@ -20,6 +20,7 @@ import {
   onSnapshot,
   deleteField,
 } from "firebase/firestore";
+import CallActionBox from "../components/CallActionBox";
 
 const configuration = {
   iceServers: [
@@ -31,7 +32,25 @@ const configuration = {
 };
 
 export default function JoinScreen({ roomId, screens, setScreen }) {
-  async function onBackPress() {
+  const [localStream, setLocalStream] = useState();
+  const [remoteStream, setRemoteStream] = useState();
+  const [cachedLocalPC, setCachedLocalPC] = useState();
+
+  const [isMuted, setIsMuted] = useState(false);
+  const [isOffCam, setIsOffCam] = useState(false);
+
+  //Automatically start stream
+  useEffect(() => {
+    startLocalStream();
+  }, []);
+  useEffect(() => {
+    if (localStream) {
+      joinCall(roomId);
+    }
+  }, [localStream]);
+
+  //End call button
+  async function endCall() {
     if (cachedLocalPC) {
       const senders = cachedLocalPC.getSenders();
       senders.forEach((sender) => {
@@ -47,15 +66,10 @@ export default function JoinScreen({ roomId, screens, setScreen }) {
     setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
     setCachedLocalPC();
     // cleanup
-    setScreen(screens.ROOM);
+    setScreen(screens.ROOM); //go back to room screen
   }
 
-  const [localStream, setLocalStream] = useState();
-  const [remoteStream, setRemoteStream] = useState();
-  const [cachedLocalPC, setCachedLocalPC] = useState();
-
-  const [isMuted, setIsMuted] = useState(false);
-
+  //start local webcam on your device
   const startLocalStream = async () => {
     // isFront will determine if the initial camera should face user or environment
     const isFront = true;
@@ -82,6 +96,7 @@ export default function JoinScreen({ roomId, screens, setScreen }) {
     setLocalStream(newStream);
   };
 
+  //join call function
   const joinCall = async (id) => {
     const roomRef = doc(db, "room", id);
     const roomSnapshot = await getDoc(roomRef);
@@ -153,91 +168,35 @@ export default function JoinScreen({ roomId, screens, setScreen }) {
     });
   };
 
+  const toggleCamera = () => {
+    localStream.getVideoTracks().forEach((track) => {
+      track.enabled = !track.enabled;
+      setIsOffCam(!isOffCam);
+    });
+  };
+
   return (
-    <>
-      <Text style={styles.heading}>Join Screen</Text>
-      <Text style={styles.heading}>Room : {roomId}</Text>
+    <View className="flex-1">
+      <RTCView
+        className="flex-1"
+        streamURL={remoteStream && remoteStream.toURL()}
+        objectFit={"cover"}
+      />
 
-      <View style={styles.callButtons}>
-        <View styles={styles.buttonContainer}>
-          <Button title="Click to stop call" onPress={onBackPress} />
-        </View>
-        <View styles={styles.buttonContainer}>
-          {!localStream && (
-            <Button title="Click to start stream" onPress={startLocalStream} />
-          )}
-          {localStream && (
-            <Button
-              title="Click to join call"
-              onPress={() => joinCall(roomId)}
-              disabled={!!remoteStream}
-            />
-          )}
-        </View>
-      </View>
-
-      {localStream && (
-        <View style={styles.toggleButtons}>
-          <Button title="Switch camera" onPress={switchCamera} />
-          <Button
-            title={`${isMuted ? "Unmute" : "Mute"} stream`}
-            onPress={toggleMute}
-            disabled={!remoteStream}
-          />
-        </View>
+      {remoteStream && !isOffCam && (
+        <RTCView
+          className="w-32 h-48 absolute right-6 top-8"
+          streamURL={localStream && localStream.toURL()}
+        />
       )}
-
-      <View style={{ display: "flex", flex: 1, padding: 10 }}>
-        <View style={styles.rtcview}>
-          {localStream && (
-            <RTCView
-              style={styles.rtc}
-              streamURL={localStream && localStream.toURL()}
-            />
-          )}
-        </View>
-        {remoteStream && (
-          <View style={styles.rtcview}>
-            <RTCView
-              style={styles.rtc}
-              streamURL={remoteStream && remoteStream.toURL()}
-            />
-          </View>
-        )}
+      <View className="absolute bottom-0 w-full">
+        <CallActionBox
+          switchCamera={switchCamera}
+          toggleMute={toggleMute}
+          toggleCamera={toggleCamera}
+          endCall={endCall}
+        />
       </View>
-    </>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  heading: {
-    alignSelf: "center",
-    fontSize: 30,
-  },
-  rtcview: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "black",
-    margin: 5,
-  },
-  rtc: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-  },
-  toggleButtons: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  callButtons: {
-    padding: 10,
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  buttonContainer: {
-    margin: 5,
-  },
-});

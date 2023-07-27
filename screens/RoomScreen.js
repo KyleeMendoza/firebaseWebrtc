@@ -8,6 +8,7 @@ export default function RoomScreen({ setScreen, screens, setRoomId, roomId }) {
     }
   };
 
+  //generate random room id
   useEffect(() => {
     const generateRandomId = () => {
       const characters = "abcdefghijklmnopqrstuvwxyz";
@@ -47,20 +48,6 @@ export default function RoomScreen({ setScreen, screens, setRoomId, roomId }) {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* <View>
-        <Button
-          className="bg-red-300 rounded-md mx-5 mb-5 p-3"
-          title="Join Screen"
-          onPress={() => onCallOrJoin(screens.JOIN)}
-        />
-      </View>
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Call Screen"
-          onPress={() => onCallOrJoin(screens.CALL)}
-        />
-      </View> */}
     </View>
   );
 }

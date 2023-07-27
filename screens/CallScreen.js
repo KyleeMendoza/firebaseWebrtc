@@ -21,7 +21,7 @@ import {
   deleteField,
 } from "firebase/firestore";
 
-import CallActionBox from "../components/CallActionBpx";
+import CallActionBox from "../components/CallActionBox";
 
 const configuration = {
   iceServers: [
@@ -33,36 +33,17 @@ const configuration = {
 };
 
 export default function CallScreen({ roomId, screens, setScreen }) {
-  // async function onBackPress() {
-  //   if (cachedLocalPC) {
-  //     const senders = cachedLocalPC.getSenders();
-  //     senders.forEach((sender) => {
-  //       cachedLocalPC.removeTrack(sender);
-  //     });
-  //     cachedLocalPC.close();
-  //   }
-
-  //   const roomRef = doc(db, "room", roomId);
-  //   await updateDoc(roomRef, { answer: deleteField() });
-
-  //   setLocalStream();
-  //   setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
-  //   setCachedLocalPC();
-  //   // cleanup
-  //   setScreen(screens.ROOM);
-  // }
-
   const [localStream, setLocalStream] = useState();
   const [remoteStream, setRemoteStream] = useState();
-  // const [remoteStreamKey, setRemoteStreamKey] = useState();
   const [cachedLocalPC, setCachedLocalPC] = useState();
 
   const [isMuted, setIsMuted] = useState(false);
+  const [isOffCam, setIsOffCam] = useState(false);
 
   useEffect(() => {
-    // generateRandomId();
     startLocalStream();
   }, []);
+
   useEffect(() => {
     if (localStream && roomId) {
       startCall(roomId);
@@ -79,16 +60,17 @@ export default function CallScreen({ roomId, screens, setScreen }) {
       cachedLocalPC.close();
     }
 
-    const roomRef = doc(firestoreDb, "room", roomId);
+    const roomRef = doc(db, "room", roomId);
     await updateDoc(roomRef, { answer: deleteField() });
 
     setLocalStream();
     setRemoteStream(); // set remoteStream to null or empty when callee leaves the call
     setCachedLocalPC();
     // cleanup
-    navigation.navigate("Bookings");
+    setScreen(screens.ROOM); //go back to room screen
   }
 
+  //start local webcam on your device
   const startLocalStream = async () => {
     // isFront will determine if the initial camera should face user or environment
     const isFront = true;
@@ -228,36 +210,3 @@ export default function CallScreen({ roomId, screens, setScreen }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  heading: {
-    alignSelf: "center",
-    fontSize: 30,
-  },
-  rtcview: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "black",
-    margin: 5,
-  },
-  rtc: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-  },
-  toggleButtons: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  callButtons: {
-    padding: 10,
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  buttonContainer: {
-    margin: 5,
-  },
-});
