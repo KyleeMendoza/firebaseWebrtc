@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { Text, View, TextInput, TouchableOpacity } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Alert } from "react-native";
+
+import { db } from "../firebase";
+import {
+  addDoc,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  onSnapshot,
+  deleteField,
+} from "firebase/firestore";
 
 export default function RoomScreen({ setScreen, screens, setRoomId, roomId }) {
   const onCallOrJoin = (screen) => {
@@ -22,6 +34,26 @@ export default function RoomScreen({ setScreen, screens, setRoomId, roomId }) {
     generateRandomId();
   }, []);
 
+  //checks if room is existing
+  const checkMeeting = async () => {
+    if (roomId) {
+      const roomRef = doc(db, "room", roomId);
+      const roomSnapshot = await getDoc(roomRef);
+
+      // console.log(roomSnapshot.data());
+
+      if (!roomSnapshot.exists() || roomId === "") {
+        // console.log(`Room ${roomId} does not exist.`);
+        Alert.alert("Wait for your instructor to start the meeting.");
+        return;
+      } else {
+        onCallOrJoin(screens.JOIN);
+      }
+    } else {
+      Alert.alert("Provide a valid Room ID.");
+    }
+  };
+
   return (
     <View>
       <Text className="text-2xl font-bold text-center">Enter Room ID:</Text>
@@ -41,7 +73,7 @@ export default function RoomScreen({ setScreen, screens, setRoomId, roomId }) {
         </TouchableOpacity>
         <TouchableOpacity
           className="bg-sky-300 p-2 rounded-md"
-          onPress={() => onCallOrJoin(screens.JOIN)}
+          onPress={() => checkMeeting()}
         >
           <Text className="color-black text-center text-xl font-bold ">
             Join meeting
