@@ -10,13 +10,13 @@ import { initializeFirestore } from "firebase/firestore";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyD5s2yaIL-4Y4vQrSCxattMbgSP6KcbuMY",
-  authDomain: "expo-webrtc.firebaseapp.com",
-  projectId: "expo-webrtc",
-  storageBucket: "expo-webrtc.appspot.com",
-  messagingSenderId: "873013349706",
-  appId: "1:873013349706:web:38a4ba283c2011737785b3",
-  measurementId: "G-K94JN450WQ",
+  apiKey: "Insert here your FIREBASE_API_KEY",
+  authDomain: "Insert here your FIREBASE_AUTH_DOMAIN",
+  projectId: "Insert here your FIREBASE_PROJECT_ID",
+  storageBucket: "Insert here your FIREBASE_STORAGE_BUCKET",
+  messagingSenderId: "Insert here your FIREBASE_MESSAGING_SENDER_ID",
+  appId: "Insert here your FIREBASE_APP_ID",
+  measurementId: "Insert here your FIREBASE_MEASUREMENT_ID",
 };
 
 // Initialize Firebase
