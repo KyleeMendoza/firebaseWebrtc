@@ -11,9 +11,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bitcode": false
@@ -38,13 +36,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "@config-plugins/react-native-webrtc"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "93562d05-aded-46fc-b745-74678eaa635a"
-      }
-    }
+    "plugins": ["@config-plugins/react-native-webrtc"]
   }
 }
