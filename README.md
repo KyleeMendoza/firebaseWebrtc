@@ -1,5 +1,5 @@
 # React Native Expo Video Calling App using WebRTC and Firebase
-Please refer to this link to follow all the steps for the project: [Link Here]
+Please refer to this link to follow all the steps for the project: https://medium.com/@kylemendoza67/react-native-expo-video-calling-app-using-webrtc-and-firebase-b6e54c79606d
 
 # Steps to setup the project
 1. Clone the project `git clone https://github.com/KyleeMendoza/firebaseWebrtc.git`
